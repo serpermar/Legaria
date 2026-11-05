@@ -26,10 +26,10 @@ flowchart LR
     ADM[Super Admin] --> WEB
     WEB --> API[API Legaria]
     API --> AUTH[Supabase Auth]
-    API --> DB[(PostgreSQL)]
+    API --> DB[(PostgreSQL + RLS)]
     API --> ST[Supabase Storage]
-    API --> MAIL[Proveedor de email]
-    API --> AI[OpenAI API]
+    API --> MAIL[Resend]
+    API --> AI[Google Gemini]
     API --> OBS[Observabilidad]
 ```
 
@@ -43,10 +43,10 @@ flowchart LR
 ### Sistemas externos
 
 - Supabase Auth.
-- PostgreSQL gestionado por Supabase.
+- PostgreSQL gestionado por Supabase (con RLS activo, ver ADR 0006).
 - Supabase Storage.
-- Proveedor de email transaccional.
-- OpenAI API.
+- Resend (email transaccional).
+- Google Gemini API (con OpenRouter como respaldo para pruebas).
 - Herramienta de errores y métricas.
 
 ---
@@ -398,6 +398,7 @@ Las políticas de Storage se basan en estas rutas como defensa adicional.
 
 - Solo backend.
 - Proveedor abstracto mediante interfaz.
+- **Proveedor principal: Google Gemini** (free tier: 1.000 RPD). **Respaldo: OpenRouter** (solo pruebas).
 - No publicación automática.
 - No invención de datos.
 - No simulación de la persona fallecida.
@@ -413,13 +414,13 @@ sequenceDiagram
     participant U as Usuario autorizado
     participant A as API
     participant D as DB
-    participant O as OpenAI
+    participant G as Gemini
     U->>A: solicitud de borrador
     A->>A: valida permisos y cuota
     A->>A: minimiza y redacta datos
     A->>D: registra AiGeneration PENDING
-    A->>O: prompt + datos mínimos
-    O-->>A: texto
+    A->>G: prompt + datos mínimos
+    G-->>A: texto
     A->>A: valida longitud, formato y seguridad
     A->>D: guarda borrador + metadatos
     A-->>U: borrador etiquetado como IA

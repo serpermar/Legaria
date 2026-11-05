@@ -1,8 +1,9 @@
 # Spec 03 — Expedientes, personas fallecidas y servicios
 
-**Estado:** Borrador  
-**Fase:** 3  
-**Depende de:** Spec 01, Spec 02
+**Módulo**: `cases`
+**Fase**: 3 (Expedientes y servicios)
+**Depende de**: `01-autenticacion-rbac.md`, `02-organizaciones-empleados.md`, ADR 0004
+**Habilita**: `04-invitaciones.md`, `05-ia.md`
 
 ---
 

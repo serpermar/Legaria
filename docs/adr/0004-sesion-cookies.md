@@ -1,6 +1,6 @@
 # ADR 0004 — Sesión con cookies httpOnly
 
-**Estado:** Propuesto  
+**Estado:** Aceptado  
 **Fecha:** 2026-11-05
 
 ## Contexto

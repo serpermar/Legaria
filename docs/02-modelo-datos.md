@@ -1,6 +1,9 @@
 # Modelo de datos inicial — Legaria
 
 **Estado:** Propuesta para validación  
+> **Fuente de verdad**: `apps/api/prisma/schema.prisma`. Este documento es un resumen ejecutivo del modelo. Si hay discrepancia entre este documento y el schema de Prisma, el schema prevalece y este documento debe actualizarse.
+
+> **RLS**: las políticas RLS aplicadas a este modelo están documentadas en ADR 0006 y viven en `infra/supabase/policies/`.
 **Motor:** PostgreSQL 15+ / Prisma ORM  
 **Identificadores:** UUID
 
@@ -731,15 +734,15 @@ Evitar:
 
 ## 9. Decisiones abiertas del modelo
 
-1. ¿Un expediente puede tener varios grupos familiares?
-2. ¿Un memorial puede existir sin expediente?
-3. ¿Se almacena DNI/NIE de la persona fallecida? ¿Con cifrado adicional?
-4. ¿Los memoriales privados requieren cuenta o pueden usar enlace con contraseña?
-5. ¿Se permiten memoriales creados por particulares sin funeraria?
-6. ¿Qué documentos de autorización son obligatorios y quién los valida?
-7. ¿Se guarda la relación familiar declarada o se minimiza?
-8. ¿Se permite contenido generado por IA en la biografía pública? ¿Con qué etiqueta?
-9. ¿Qué política de retención se aplica a expedientes y documentos?
-10. ¿Se usará RLS además de la autorización de aplicación?
+1. ~~¿Un expediente puede tener varios grupos familiares?~~ → **No en MVP** (UNIQUE en `case_id`). Modelo preparado para evolucionar.
+2. ¿Un memorial puede existir sin expediente? → **No en MVP**.
+3. ~~¿Se almacena DNI/NIE?~~ → **No en MVP**.
+4. ~~¿Los memoriales privados requieren cuenta o enlace con contraseña?~~ → **Cuenta + membership** (`RESTRICTED` usa `memorial_access_grants`).
+5. ¿Memoriales creados por particulares sin funeraria? → **No en MVP**.
+6. ¿Documentos de autorización obligatorios? → **Consentimiento digital con evidencia** (`publication_authorizations`); documento firmado opcional.
+7. ~~¿Se guarda la relación familiar declarada?~~ → **Sí, opcional y minimizada** (`relationship` en `family_members`).
+8. ~~¿Se permite contenido IA en biografía pública?~~ → **Sí, etiquetado y con revisión humana** (spec 06).
+9. ¿Política de retención? → Propuesta inicial en `docs/legal/politica-datos-fallecidos.md` § 7; pendiente de revisión legal.
+10. ~~¿RLS además de autorización de aplicación?~~ → **Sí** (ADR 0006).
 
 Estas cuestiones se consolidan en [docs/05-decisiones-pendientes.md](./05-decisiones-pendientes.md).

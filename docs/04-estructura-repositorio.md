@@ -51,6 +51,8 @@ legaria/
 │   ├── 04-estructura-repositorio.md
 │   ├── 05-decisiones-pendientes.md
 │   ├── 06-identidad-visual.md
+├───────legal/
+│   └────── politica-datos-fallecidos.md
 │   └── adr/
 │       ├── 0001-monorepo-pnpm.md
 │       ├── 0002-monolito-modular.md
@@ -191,6 +193,7 @@ legaria/
 ├── infra/
 │   ├── supabase/
 │   │   ├── policies/
+            └── 0001_rls.sql 
 │   │   └── storage.sql
 │   └── docker-compose.yml
 └── scripts/
@@ -454,3 +457,15 @@ Pipeline mínimo:
 - Sistema de plugins.
 - Multi-región.
 - Feature flags complejos.
+
+---
+
+## 10. Estado del código de aplicación
+
+A fecha de esta actualización, `apps/` no contiene todavía código de aplicación. Los módulos `auth`, `organizations` y `cases` están especificados en `specs/` y sus contratos se derivan de:
+
+- `specs/01-autenticacion-rbac.md`
+- `specs/02-organizaciones-empleados.md`
+- `specs/03-expedientes-servicios.md`
+
+La implementación empezará tras validar el esquema Prisma (`apps/api/prisma/schema.prisma`) contra este documento y contra `docs/02-modelo-datos.md`.
