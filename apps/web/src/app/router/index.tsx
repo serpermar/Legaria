@@ -5,7 +5,7 @@ import { CaseListPage } from '@/modules/cases/pages/CaseListPage';
 export const router = createBrowserRouter([
     {
         path: '/',
-        element: <Navigate to="/app/cases" replace />,
+        element: <Navigate to="/app" replace />,
     },
     {
         path: '/app',
@@ -17,6 +17,6 @@ export const router = createBrowserRouter([
     },
     {
         path: '*',
-        element: <Navigate to="/app/cases" replace />,
+        element: <Navigate to="/app" replace />,
     },
 ]);
