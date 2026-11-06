@@ -21,7 +21,7 @@
 
 | | |
 |---|---|
-| **Opciones** | A) BFF con cookies `httpOnly` gestionadas por la API. B) SPA con Bearer token y Supabase JS. C) Híbrido. |
+| **Opciones** | A) BFF con cookies `httpOnly` gestionadas por la API. B) SPA con Bearer token y SDK de auth en el navegador. C) Híbrido. |
 | **Recomendación** | **A** para datos sensibles: refresh token fuera de JavaScript, revocación centralizada y CSRF controlado. |
 | **Impacto** | Alto: afecta a auth, CORS, CSRF, frontend y despliegue. |
 | **Requisito** | Dominios same-site (`app.legaria.es` + `api.legaria.es`) o proxy inverso. |
@@ -42,11 +42,11 @@
 
 | | |
 |---|---|
-| **Opciones** | A) Supabase (EU) + API en Render/Fly.io + web en Vercel/Cloudflare Pages. B) Todo en Railway. C) AWS. |
+| **Opciones** | A) Neon (EU) + API en Render/Fly.io + web en Vercel/Cloudflare Pages. B) Todo en Railway. C) AWS. |
 | **Recomendación** | **A**, con dominios propios y misma-site para cookies. |
 | **Impacto** | Alto: coste, latencia, despliegue, backups y observabilidad. |
-| **Decisión** | Supabase (US en free tier) + Render (API) + Vercel (web). Migración a UE antes de producción real. |
-| **Referencia** | `docs/legal/politica-datos-fallecidos.md` § 8 |
+| **Decisión** | Neon Free (Frankfurt) + Render (API) + Vercel (web), con Better Auth autoalojado y Neon Object Storage. |
+| **Referencia** | ADR 0007 y `docs/legal/politica-datos-fallecidos.md` § 8 |
 
 ### D-05. Proveedor de email
 
@@ -70,10 +70,10 @@
 
 | | |
 |---|---|
-| **Opciones** | A) Supabase local. B) PostgreSQL con Testcontainers. C) Base de datos de staging. |
+| **Opciones** | A) PostgreSQL local en Docker. B) PostgreSQL con Testcontainers. C) Base de datos de staging. |
 | **Recomendación** | **B** en CI y **A** en local. |
 | **Impacto** | Medio: velocidad y fiabilidad de CI. |
-| **Decisión** | Testcontainers en CI, Supabase local en dev. |
+| **Decisión** | Testcontainers en CI, PostgreSQL en Docker en dev. |
 
 ---
 
@@ -192,8 +192,8 @@ Propuesta: modelo mixto (encargada para funerarias, responsable para memoriales 
 
 | | |
 |---|---|
-| **Opciones** | A) OpenAI API con DPA y minimización. B) Azure OpenAI en la UE. C) Otro proveedor. |
-| **Recomendación** | **B** si la residencia de datos en la UE es requisito; **A** si las garantías contractuales son suficientes. |
+| **Opciones** | A) OpenAI API con DPA y minimización. B) Azure OpenAI en la UE. C) Google Gemini (free tier) o Vertex AI. |
+| **Recomendación** | **C** para el MVP por coste; **B** si la residencia de datos en la UE es requisito. |
 | **Impacto** | Alto: privacidad, coste, latencia y calidad. |
 | **Decisión** | **Google Gemini** (free tier: 1.000 RPD en Flash-Lite) como principal. **OpenRouter** como respaldo solo para pruebas (50 RPD sin créditos). Abstracción vía `AiProvider`. |
 | **Referencia** | `specs/06-ia.md` § 11 |
@@ -264,7 +264,7 @@ Propuesta: modelo mixto (encargada para funerarias, responsable para memoriales 
 Estas decisiones se consideran parte de la propuesta y solo requieren confirmación:
 
 1. Monolito modular, sin microservicios.
-2. PostgreSQL + Prisma + Supabase.
+2. PostgreSQL + Prisma + Neon.
 3. UUID como identificadores.
 4. Zod como validación compartida.
 5. API REST versionada en `/api/v1`.

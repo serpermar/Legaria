@@ -159,7 +159,7 @@ Fase: fase de desarrollo prevista.
 
 | ID | Requisito | Prioridad | Fase |
 |---|---|---|---|
-| FR-AUTH-01 | Login con email y contraseña mediante Supabase Auth. | M | 1 |
+| FR-AUTH-01 | Login con email y contraseña mediante Better Auth. | M | 1 |
 | FR-AUTH-02 | Renovación de sesión y revocación de sesiones activas. | M | 1 |
 | FR-AUTH-03 | Logout local y logout global. | M | 1 |
 | FR-AUTH-04 | Recuperación y restablecimiento de contraseña. | M | 1 |
@@ -443,7 +443,7 @@ Fase: fase de desarrollo prevista.
 | Contenido ofensivo o spam en memoriales | Alto | Moderación previa, límites, CAPTCHA, reportes. |
 | IA que inventa o resulta inapropiada | Alto | Solo datos aportados, instrucciones estrictas, revisión humana obligatoria. |
 | Complejidad excesiva del MVP | Medio | Fases cerradas, monolito modular, alcance explícito. |
-| Dependencia de Supabase | Medio | Abstracciones de auth, storage y datos; exportación y backups. |
+| Dependencia del proveedor de datos | Medio | Prisma + SQL estándar; Neon es PostgreSQL y el storage es S3-compatible. |
 | Baja adopción por funerarias | Medio | Diseño operativo sencillo, onboarding asistido y valor visible. |
 | Coste de IA o almacenamiento | Medio | Límites por plan, cuotas y monitorización. |
 | Cambios legales o interpretación del RGPD | Alto | Revisión legal, DPIA, contratos de encargado y política de conservación. |

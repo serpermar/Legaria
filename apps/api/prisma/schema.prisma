@@ -1,0 +1,787 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum PlatformRole {
+  USER
+  SUPER_ADMIN
+}
+
+enum OrganizationStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum OrganizationMemberRole {
+  FUNERAL_ADMIN
+  FUNERAL_EMPLOYEE
+}
+
+enum OrganizationMemberStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+
+enum CaseStatus {
+  DRAFT
+  OPEN
+  IN_PROGRESS
+  CLOSED
+  ARCHIVED
+}
+
+enum FuneralServiceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum CeremonyStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum MemorialPrivacy {
+  PUBLIC
+  PRIVATE
+  RESTRICTED
+}
+
+enum MemorialStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+  UNPUBLISHED
+  ARCHIVED
+}
+
+enum FamilyMemberRole {
+  FAMILY_ADMIN
+  FAMILY_MEMBER
+}
+
+enum InvitationRole {
+  FAMILY_MEMBER
+  FAMILY_ADMIN
+}
+
+enum InviterRole {
+  FUNERAL_ADMIN
+  FUNERAL_EMPLOYEE
+  FAMILY_ADMIN
+}
+
+enum DocumentType {
+  DEATH_CERTIFICATE
+  BURIAL_PERMIT
+  INVOICE
+  CONTRACT
+  OTHER
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AiGenerationType {
+  BIOGRAPHY
+  TRIBUTE
+  CHRONOLOGY
+  REWRITE
+}
+
+enum AiGenerationStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  FAILED
+}
+
+enum SubscriptionPlan {
+  BASIC
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+// ============================================================
+// BETTER AUTH (identidad)
+// ============================================================
+// Better Auth es la fuente de identidad (credenciales, sesiones y
+// verificaciones). Se usan nombres de modelo propios para no colisionar con
+// el modelo de dominio `User`; el adaptador de Prisma se configura con
+// `modelName: "authUser"`, etc.
+
+model AuthUser {
+  id            String   @id
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions AuthSession[]
+  accounts AuthAccount[]
+
+  @@map("auth_user")
+}
+
+model AuthSession {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_session")
+}
+
+model AuthAccount {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?   @db.Text
+  refreshToken          String?   @db.Text
+  idToken               String?   @db.Text
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_account")
+}
+
+model AuthVerification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("auth_verification")
+}
+
+// ============================================================
+// USERS (dominio)
+// ============================================================
+
+model User {
+  id              String       @id @default(uuid()) @db.Uuid
+  authUserId      String       @unique @map("auth_user_id")
+  email           String       @unique
+  fullName        String?      @map("full_name")
+  phone           String?
+  platformRole    PlatformRole @default(USER) @map("platform_role")
+  emailVerifiedAt DateTime?    @map("email_verified_at")
+  lastLoginAt     DateTime?    @map("last_login_at")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  organizationMemberships OrganizationMember[]
+  familyMemberships       FamilyMember[]
+  invitationsSent         Invitation[]                       @relation("InvitationSender")
+  caseAssignments         CaseAssignment[]
+  memorialAuthorizations  MemorialPublicationAuthorization[]
+  aiGenerationsRequested  AiGeneration[]                     @relation("AiGenerationRequester")
+  aiGenerationsReviewed   AiGeneration[]                     @relation("AiGenerationReviewer")
+  condolencesAuthored     Condolence[]
+  memoriesAuthored        Memory[]
+  mediaUploaded           MemorialMedia[]
+  auditLogs               AuditLog[]
+
+  @@index([email])
+  @@index([platformRole])
+  @@map("users")
+}
+
+// ============================================================
+// ORGANIZATIONS
+// ============================================================
+
+model Organization {
+  id         String             @id @default(uuid()) @db.Uuid
+  name       String
+  slug       String             @unique
+  legalName  String?            @map("legal_name")
+  taxId      String?            @unique @map("tax_id")
+  email      String?
+  phone      String?
+  address    String?
+  city       String?
+  province   String?
+  postalCode String?            @map("postal_code")
+  country    String             @default("ES")
+  logoUrl    String?            @map("logo_url")
+  plan       SubscriptionPlan   @default(BASIC)
+  status     OrganizationStatus @default(PENDING)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  members       OrganizationMember[]
+  cases         Case[]
+  familyGroups  FamilyGroup[]
+  memorials     Memorial[]
+  invitations   Invitation[]
+  ceremonyRooms CeremonyRoom[]
+  subscription  Subscription?
+  aiGenerations AiGeneration[]
+  auditLogs     AuditLog[]
+
+  @@index([name])
+  @@index([status])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String                   @id @default(uuid()) @db.Uuid
+  organizationId String                   @map("organization_id") @db.Uuid
+  userId         String                   @map("user_id") @db.Uuid
+  role           OrganizationMemberRole
+  status         OrganizationMemberStatus @default(INVITED)
+  jobTitle       String?                  @map("job_title")
+  isActive       Boolean                  @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId, role])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+// ============================================================
+// CASES
+// ============================================================
+
+model Case {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  caseNumber     String     @map("case_number")
+  status         CaseStatus @default(DRAFT)
+  internalNotes  String?    @map("internal_notes") @db.Text
+  closedAt       DateTime?  @map("closed_at")
+  archivedAt     DateTime?  @map("archived_at")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  deceasedPerson DeceasedPerson?
+  familyGroup    FamilyGroup?
+  memorial       Memorial?
+  services       FuneralService[]
+  ceremonies     Ceremony[]
+  assignments    CaseAssignment[]
+  documents      CaseDocument[]
+  invitations    Invitation[]
+  aiGenerations  AiGeneration[]
+
+  @@unique([organizationId, caseNumber])
+  @@index([organizationId, status])
+  @@index([status])
+  @@map("cases")
+}
+
+model CaseAssignment {
+  id           String   @id @default(uuid()) @db.Uuid
+  caseId       String   @map("case_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  assignedById String?  @map("assigned_by_id") @db.Uuid
+  assignedAt   DateTime @default(now()) @map("assigned_at")
+  isActive     Boolean  @default(true) @map("is_active")
+  notes        String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([caseId, userId])
+  @@index([caseId])
+  @@index([userId])
+  @@map("case_assignments")
+}
+
+model DeceasedPerson {
+  id             String    @id @default(uuid()) @db.Uuid
+  caseId         String    @unique @map("case_id") @db.Uuid
+  firstName      String    @map("first_name")
+  lastName       String    @map("last_name")
+  secondLastName String?   @map("second_last_name")
+  birthDate      DateTime? @map("birth_date") @db.Date
+  deathDate      DateTime  @map("death_date") @db.Date
+  birthPlace     String?   @map("birth_place")
+  deathPlace     String?   @map("death_place")
+  nationality    String?
+  occupation     String?
+  biography      String?   @db.Text
+  photoUrl       String?   @map("photo_url")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([lastName, firstName])
+  @@map("deceased_persons")
+}
+
+model FuneralService {
+  id          String               @id @default(uuid()) @db.Uuid
+  caseId      String               @map("case_id") @db.Uuid
+  serviceType String               @map("service_type")
+  status      FuneralServiceStatus @default(SCHEDULED)
+  scheduledAt DateTime?            @map("scheduled_at")
+  location    String?
+  notes       String?              @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  case       Case       @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  ceremonies Ceremony[]
+
+  @@index([caseId])
+  @@index([status])
+  @@map("funeral_services")
+}
+
+model CeremonyRoom {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  name           String
+  capacity       Int?
+  location       String?
+  isActive       Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  ceremonies   Ceremony[]
+
+  @@index([organizationId])
+  @@map("rooms")
+}
+
+model Ceremony {
+  id               String         @id @default(uuid()) @db.Uuid
+  caseId           String         @map("case_id") @db.Uuid
+  funeralServiceId String?        @map("funeral_service_id") @db.Uuid
+  roomId           String?        @map("room_id") @db.Uuid
+  title            String
+  status           CeremonyStatus @default(SCHEDULED)
+  scheduledAt      DateTime       @map("scheduled_at")
+  durationMinutes  Int?           @map("duration_minutes")
+  location         String?
+  notes            String?        @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  case           Case            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  funeralService FuneralService? @relation(fields: [funeralServiceId], references: [id], onDelete: SetNull)
+  room           CeremonyRoom?   @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
+  @@index([caseId])
+  @@index([scheduledAt])
+  @@map("ceremonies")
+}
+
+model CaseDocument {
+  id            String       @id @default(uuid()) @db.Uuid
+  caseId        String       @map("case_id") @db.Uuid
+  type          DocumentType
+  name          String
+  storagePath   String       @map("storage_path")
+  mimeType      String?      @map("mime_type")
+  fileSizeBytes Int?         @map("file_size_bytes")
+  isPublic      Boolean      @default(false) @map("is_public")
+  uploadedById  String?      @map("uploaded_by_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId, type])
+  @@map("documents")
+}
+
+// ============================================================
+// FAMILIES
+// ============================================================
+
+model FamilyGroup {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  caseId         String @unique @map("case_id") @db.Uuid
+  name           String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  case         Case           @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  members      FamilyMember[]
+  invitations  Invitation[]
+
+  @@index([organizationId])
+  @@map("family_groups")
+}
+
+model FamilyMember {
+  id            String           @id @default(uuid()) @db.Uuid
+  familyGroupId String           @map("family_group_id") @db.Uuid
+  userId        String           @map("user_id") @db.Uuid
+  role          FamilyMemberRole @default(FAMILY_MEMBER)
+  relationship  String?
+  isActive      Boolean          @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  familyGroup FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([familyGroupId, userId])
+  @@index([familyGroupId, role])
+  @@index([userId])
+  @@map("family_members")
+}
+
+// ============================================================
+// INVITATIONS
+// ============================================================
+
+model Invitation {
+  id              String         @id @default(uuid()) @db.Uuid
+  organizationId  String         @map("organization_id") @db.Uuid
+  caseId          String         @map("case_id") @db.Uuid
+  familyGroupId   String?        @map("family_group_id") @db.Uuid
+  email           String
+  tokenHash       String         @unique @map("token_hash")
+  roleToAssign    InvitationRole @default(FAMILY_MEMBER) @map("role_to_assign")
+  assignAdminRole Boolean        @default(false) @map("assign_admin_role")
+  invitedById     String         @map("invited_by_id") @db.Uuid
+  invitedByRole   InviterRole    @map("invited_by_role")
+  expiresAt       DateTime       @map("expires_at")
+  usedAt          DateTime?      @map("used_at")
+  revokedAt       DateTime?      @map("revoked_at")
+  revokedReason   String?        @map("revoked_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  case         Case         @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  familyGroup  FamilyGroup? @relation(fields: [familyGroupId], references: [id], onDelete: SetNull)
+  invitedBy    User         @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Restrict)
+
+  @@index([email])
+  @@index([caseId])
+  @@index([expiresAt])
+  @@index([usedAt])
+  @@map("invitations")
+}
+
+// ============================================================
+// MEMORIALS
+// ============================================================
+
+model Memorial {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  caseId         String          @unique @map("case_id") @db.Uuid
+  publicSlug     String?         @unique @map("public_slug")
+  title          String
+  biography      String?         @db.Text
+  coverImageUrl  String?         @map("cover_image_url")
+  privacy        MemorialPrivacy @default(PRIVATE)
+  status         MemorialStatus  @default(DRAFT)
+  publishedAt    DateTime?       @map("published_at")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  organization   Organization                       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  case           Case                               @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  media          MemorialMedia[]
+  timelineEvents MemorialTimelineEvent[]
+  anniversaries  MemorialAnniversary[]
+  condolences    Condolence[]
+  memories       Memory[]
+  authorizations MemorialPublicationAuthorization[]
+  aiGenerations  AiGeneration[]
+
+  @@index([organizationId])
+  @@index([status, privacy])
+  @@index([publicSlug])
+  @@map("memorials")
+}
+
+model MemorialMedia {
+  id            String  @id @default(uuid()) @db.Uuid
+  memorialId    String  @map("memorial_id") @db.Uuid
+  type          String // "PHOTO" | "VIDEO" | "AUDIO" | "DOCUMENT"
+  storagePath   String  @map("storage_path")
+  url           String?
+  mimeType      String? @map("mime_type")
+  fileSizeBytes Int?    @map("file_size_bytes")
+  caption       String?
+  isPublic      Boolean @default(false) @map("is_public")
+  uploadedById  String? @map("uploaded_by_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  memorial   Memorial @relation(fields: [memorialId], references: [id], onDelete: Cascade)
+  uploadedBy User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([memorialId, type])
+  @@index([memorialId, isPublic])
+  @@map("memorial_media")
+}
+
+model MemorialTimelineEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  memorialId  String   @map("memorial_id") @db.Uuid
+  eventDate   DateTime @map("event_date") @db.Date
+  title       String
+  description String?  @db.Text
+  orderIndex  Int      @default(0) @map("order_index")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  memorial Memorial @relation(fields: [memorialId], references: [id], onDelete: Cascade)
+
+  @@index([memorialId, eventDate])
+  @@map("timeline_events")
+}
+
+model MemorialAnniversary {
+  id         String   @id @default(uuid()) @db.Uuid
+  memorialId String   @map("memorial_id") @db.Uuid
+  date       DateTime @db.Date
+  label      String
+  recurring  Boolean  @default(true)
+  notes      String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  memorial Memorial @relation(fields: [memorialId], references: [id], onDelete: Cascade)
+
+  @@index([memorialId])
+  @@map("memorial_anniversaries")
+}
+
+model MemorialPublicationAuthorization {
+  id              String   @id @default(uuid()) @db.Uuid
+  memorialId      String   @map("memorial_id") @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  declarationHash String   @map("declaration_hash")
+  ipAddress       String?  @map("ip_address")
+  userAgent       String?  @map("user_agent")
+  acceptedAt      DateTime @default(now()) @map("accepted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  memorial Memorial @relation(fields: [memorialId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([memorialId, userId])
+  @@index([memorialId])
+  @@map("publication_authorizations")
+}
+
+// ============================================================
+// COLLABORATIVE CONTENT
+// ============================================================
+
+model Condolence {
+  id         String           @id @default(uuid()) @db.Uuid
+  memorialId String           @map("memorial_id") @db.Uuid
+  authorId   String?          @map("author_id") @db.Uuid
+  authorName String           @map("author_name")
+  message    String           @db.Text
+  status     ModerationStatus @default(APPROVED)
+  ipAddress  String?          @map("ip_address")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  memorial Memorial @relation(fields: [memorialId], references: [id], onDelete: Cascade)
+  author   User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([memorialId, status])
+  @@map("condolences")
+}
+
+model Memory {
+  id         String           @id @default(uuid()) @db.Uuid
+  memorialId String           @map("memorial_id") @db.Uuid
+  authorId   String?          @map("author_id") @db.Uuid
+  title      String?
+  content    String           @db.Text
+  status     ModerationStatus @default(PENDING)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  memorial Memorial @relation(fields: [memorialId], references: [id], onDelete: Cascade)
+  author   User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([memorialId, status])
+  @@map("memories")
+}
+
+// ============================================================
+// AI
+// ============================================================
+
+model AiGeneration {
+  id              String             @id @default(uuid()) @db.Uuid
+  userId          String             @map("user_id") @db.Uuid
+  organizationId  String?            @map("organization_id") @db.Uuid
+  caseId          String?            @map("case_id") @db.Uuid
+  memorialId      String?            @map("memorial_id") @db.Uuid
+  type            AiGenerationType
+  provider        String
+  model           String
+  promptTokens    Int?               @map("prompt_tokens")
+  outputTokens    Int?               @map("output_tokens")
+  latencyMs       Int?               @map("latency_ms")
+  costEstimateUsd Decimal?           @map("cost_estimate_usd") @db.Decimal(10, 6)
+  inputHash       String             @map("input_hash")
+  outputText      String             @map("output_text") @db.Text
+  status          AiGenerationStatus @default(PENDING_REVIEW)
+  reviewedById    String?            @map("reviewed_by_id") @db.Uuid
+  reviewedAt      DateTime?          @map("reviewed_at")
+  rejectionReason String?            @map("rejection_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User          @relation("AiGenerationRequester", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer     User?         @relation("AiGenerationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  case         Case?         @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  memorial     Memorial?     @relation(fields: [memorialId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([caseId])
+  @@index([status])
+  @@map("ai_generations")
+}
+
+// ============================================================
+// SUBSCRIPTIONS
+// ============================================================
+
+model Subscription {
+  id                     String             @id @default(uuid()) @db.Uuid
+  organizationId         String             @unique @map("organization_id") @db.Uuid
+  plan                   SubscriptionPlan   @default(BASIC)
+  status                 SubscriptionStatus @default(TRIALING)
+  currentPeriodStart     DateTime?          @map("current_period_start")
+  currentPeriodEnd       DateTime?          @map("current_period_end")
+  trialEndsAt            DateTime?          @map("trial_ends_at")
+  canceledAt             DateTime?          @map("canceled_at")
+  externalCustomerId     String?            @map("external_customer_id")
+  externalSubscriptionId String?            @map("external_subscription_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("subscriptions")
+}
+
+// ============================================================
+// AUDIT
+// ============================================================
+
+model AuditLog {
+  id             String  @id @default(uuid()) @db.Uuid
+  actorId        String? @map("actor_id") @db.Uuid
+  organizationId String? @map("organization_id") @db.Uuid
+  action         String
+  resourceType   String  @map("resource_type")
+  resourceId     String? @map("resource_id")
+  metadata       Json?
+  ipAddress      String? @map("ip_address")
+  userAgent      String? @map("user_agent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  actor        User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([organizationId])
+  @@index([action])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

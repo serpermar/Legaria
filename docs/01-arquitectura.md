@@ -25,9 +25,9 @@ flowchart LR
     VIS[Visitante] --> WEB
     ADM[Super Admin] --> WEB
     WEB --> API[API Legaria]
-    API --> AUTH[Supabase Auth]
-    API --> DB[(PostgreSQL + RLS)]
-    API --> ST[Supabase Storage]
+    API --> AUTH[Better Auth]
+    API --> DB[(Neon PostgreSQL + RLS)]
+    API --> ST[Neon Object Storage]
     API --> MAIL[Resend]
     API --> AI[Google Gemini]
     API --> OBS[Observabilidad]
@@ -42,9 +42,9 @@ flowchart LR
 
 ### Sistemas externos
 
-- Supabase Auth.
-- PostgreSQL gestionado por Supabase (con RLS activo, ver ADR 0006).
-- Supabase Storage.
+- **Better Auth** autoalojado en la API (ADR 0007).
+- PostgreSQL gestionado por **Neon** (con RLS activo, ver ADR 0006 y 0007).
+- **Neon Object Storage** (S3-compatible).
 - Resend (email transaccional).
 - Google Gemini API (con OpenRouter como respaldo para pruebas).
 - Herramienta de errores y métricas.
@@ -60,20 +60,21 @@ flowchart TB
     end
     subgraph Servidor
         API[API Express + TypeScript]
+        BA[Better Auth]
         JOBS[Worker de trabajos]
     end
-    subgraph Supabase
-        SA[Supabase Auth]
+    subgraph Neon
         PG[(PostgreSQL)]
-        ST[Storage]
+        ST[Object Storage]
     end
     subgraph Externos
         MAIL[Email]
-        AI[OpenAI]
+        AI[Google Gemini]
         ERR[Sentry / Observabilidad]
     end
     SPA -->|HTTPS /api/v1| API
-    API --> SA
+    SPA -->|HTTPS /api/auth| BA
+    API --> BA
     API --> PG
     API --> ST
     API --> MAIL
@@ -89,9 +90,9 @@ flowchart TB
 
 - **Un solo backend** con módulos. Los trabajos en segundo plano se ejecutan en un worker separado usando el mismo código.
 - **Sin acceso directo del navegador a la base de datos.** El frontend solo habla con la API.
-- **Supabase Auth** gestiona credenciales y sesiones. La API verifica la identidad y resuelve roles y contextos desde PostgreSQL.
-- **Storage** se usa con buckets privados. La API autoriza y genera URLs firmadas.
-- **OpenAI** solo se invoca desde el backend.
+- **Better Auth** gestiona credenciales y sesiones dentro de la API. La API resuelve roles y contextos desde PostgreSQL.
+- **Neon Object Storage** se usa con buckets privados. La API autoriza y genera URLs firmadas.
+- **Gemini** solo se invoca desde el backend.
 
 ---
 
@@ -145,13 +146,13 @@ Reglas:
 
 ```text
 shared/
-├── auth/            # ActorContext, verificación de JWT, sesión
+├── auth/            # ActorContext, sesión Better Auth, verificación
 ├── authorization/   # Permisos, políticas, guards
 ├── db/              # Cliente Prisma, transacciones, paginación
 ├── errors/          # Errores de dominio y mapeo HTTP
 ├── http/            # Middlewares, requestId, validación
 ├── audit/           # Servicio de auditoría
-├── storage/         # Adaptador de Supabase Storage
+├── storage/         # Adaptador S3 (Neon Object Storage)
 ├── email/           # Adaptador de email
 ├── ai/              # Interfaz AiProvider
 └── utils/           # Fechas, slugs, tokens, criptografía
@@ -163,7 +164,7 @@ shared/
 Request
   -> requestId + logger
   -> seguridad (helmet, CORS, rate limit)
-  -> autenticación (JWT / sesión)
+  -> autenticación (sesión Better Auth)
   -> resolución de actor (usuario + memberships)
   -> validación de entrada (Zod)
   -> autorización de rol/permiso
@@ -196,7 +197,7 @@ type ActorContext = {
 };
 ```
 
-- Los roles **no** se confían al JWT de Supabase. Se resuelven desde PostgreSQL.
+- Los roles **no** se confían a la sesión de Better Auth. Se resuelven desde PostgreSQL.
 - Se pueden cachear durante pocos segundos, pero deben invalidarse al cambiar permisos.
 - Toda operación de tenant recibe el `organizationId` de la ruta y lo contrasta con las memberships.
 - Toda operación familiar recibe el `familyGroupId` o el recurso y contrasta la membership.
@@ -212,17 +213,16 @@ sequenceDiagram
     participant U as Usuario
     participant W as Web
     participant A as API
-    participant S as Supabase Auth
+    participant S as Better Auth
     U->>W: email + contraseña
-    W->>A: POST /auth/login
-    A->>S: signInWithPassword
-    S-->>A: access + refresh token
-    A->>A: crea sesión y cookies httpOnly
+    W->>A: POST /api/auth/sign-in/email
+    A->>S: valida credenciales
+    S-->>A: sesión + cookie httpOnly
     A-->>W: Set-Cookie + perfil
     W->>A: peticiones con cookie
-    A->>A: verifica access token
+    A->>S: getSession(headers)
     A-->>W: recurso
-    Note over A,S: Al caducar, /auth/refresh rota el refresh token
+    Note over A,S: Better Auth rota y revoca la sesión
 ```
 
 Ventajas:
@@ -236,11 +236,11 @@ Requisitos:
 
 - Cookies `httpOnly`, `Secure`, `SameSite=Lax`.
 - Token anti-CSRF para métodos mutables.
-- Rotación de refresh token y detección de reutilización.
+- Rotación y revocación de sesión gestionadas por Better Auth.
 - Reautenticación para acciones sensibles.
 - CORS con credenciales y lista de orígenes permitidos.
 
-> Alternativa si se opta por SPA con Bearer: access token en memoria y refresh gestionado por Supabase JS. Es más simple, pero expone más superficie ante XSS. La decisión está en `docs/05-decisiones-pendientes.md`.
+> Alternativa descartada: SPA con Bearer token y SDK de auth en el navegador. Expone más superficie ante XSS. La decisión está en `docs/05-decisiones-pendientes.md`.
 
 ### 5.2. Sesiones
 
@@ -331,7 +331,7 @@ Los datos familiares se acotan por `family_group_id` y por el expediente asociad
 
 ## 8. Base de datos y Prisma
 
-- PostgreSQL 15+ gestionado por Supabase.
+- PostgreSQL 15+ gestionado por **Neon**.
 - Prisma como ORM y herramienta de migraciones.
 - UUID como identificador principal.
 - `created_at`, `updated_at` y `deleted_at` cuando aplique.
@@ -342,8 +342,8 @@ Los datos familiares se acotan por `family_group_id` y por el expediente asociad
 
 ### Conexión
 
-- **Runtime:** connection pooler de Supabase (puerto de pooling).
-- **Migraciones:** conexión directa.
+- **Runtime:** endpoint pooled de Neon (`-pooler`, PgBouncer).
+- **Migraciones:** conexión directa (`DIRECT_URL`).
 - Variables separadas: `DATABASE_URL` y `DIRECT_URL`.
 - Límite de conexiones ajustado al plan.
 
@@ -351,7 +351,7 @@ Los datos familiares se acotan por `family_group_id` y por el expediente asociad
 
 - Operaciones que afectan a varias tablas usan transacción.
 - La auditoría crítica se escribe en la misma transacción cuando sea posible.
-- Nunca se mantienen transacciones abiertas durante llamadas a OpenAI o email.
+- Nunca se mantienen transacciones abiertas durante llamadas a Gemini o email.
 
 ---
 
@@ -388,7 +388,7 @@ memorials/{memorialId}/originals/{mediaId}
 memorials/{memorialId}/public/{mediaId}
 ```
 
-Las políticas de Storage se basan en estas rutas como defensa adicional.
+Las políticas de acceso a objetos se basan en estas rutas como defensa adicional.
 
 ---
 
@@ -473,7 +473,7 @@ Recomendación: `pg-boss` sobre PostgreSQL para el MVP, evitando Redis. Si el vo
 
 | Entorno | Uso |
 |---|---|
-| Local | Desarrollo con Supabase local o Docker y datos de prueba. |
+| Local | Desarrollo con PostgreSQL en Docker y datos de prueba. |
 | Staging | Validación previa a producción, datos sintéticos. |
 | Producción | Datos reales, acceso restringido y auditoría. |
 
@@ -481,7 +481,7 @@ Recomendación: `pg-boss` sobre PostgreSQL para el MVP, evitando Redis. Si el vo
 
 - **Web:** Vercel o Cloudflare Pages.
 - **API:** Render, Fly.io o Railway.
-- **Datos, auth y storage:** Supabase en región europea.
+- **Datos, auth y storage:** Neon en región europea (Frankfurt) + Better Auth autoalojado.
 - **Dominios:** `app.legaria.es` y `api.legaria.es` para mantener cookies same-site.
 - **CI/CD:** GitHub Actions con lint, typecheck, tests, build y migraciones controladas.
 
@@ -515,7 +515,7 @@ Recomendación: `pg-boss` sobre PostgreSQL para el MVP, evitando Redis. Si el vo
 |---|---|
 | Fugas entre tenants | Repositorios acotados, claves compuestas, pruebas. |
 | Complejidad del BFF de sesión | Documentar flujo, tests de refresh/revocación. |
-| Acoplamiento a Supabase | Adaptadores y migraciones estándar de PostgreSQL. |
+| Acoplamiento al proveedor de datos | Prisma + SQL estándar; Neon es PostgreSQL y el storage es S3-compatible. |
 | Coste de IA | Cuotas, caché de prompts, límites por plan. |
 | Medios pesados | Límites, procesamiento y almacenamiento separado. |
 | Crecimiento del monolito | Módulos con límites claros y dependencias explícitas. |

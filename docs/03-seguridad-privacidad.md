@@ -61,8 +61,9 @@
 ### 3.2. Límites de confianza
 
 - Navegador → API.
-- API → Supabase.
-- API → OpenAI.
+- API → Neon (PostgreSQL).
+- API → Neon Object Storage.
+- API → Google Gemini.
 - API → proveedor de email.
 - Personal interno → panel de administración.
 
@@ -74,11 +75,11 @@ Todo lo que cruza un límite se valida y se registra.
 
 ### 4.1. Autenticación
 
-- Supabase Auth con contraseñas gestionadas por el proveedor.
+- **Better Auth** con contraseñas hasheadas por la librería (scrypt).
 - Verificación de email.
-- MFA para administradores.
-- Sesiones con access token corto y refresh rotatorio.
-- Cookies `httpOnly`, `Secure`, `SameSite=Lax` si se adopta BFF.
+- MFA para administradores (plugin de Better Auth en fase 2).
+- Sesiones con cookie `httpOnly` y caducidad configurable.
+- Cookies `httpOnly`, `Secure`, `SameSite=Lax` (patrón BFF).
 - Revocación de sesiones por usuario y por administrador.
 - Reautenticación para acciones sensibles.
 - Bloqueo progresivo y límites por IP y por cuenta.
@@ -101,8 +102,8 @@ Todo lo que cruza un límite se valida y se registra.
 - Claves foráneas compuestas.
 - Filtros obligatorios en repositorios.
 - Pruebas automatizadas con dos organizaciones.
-- RLS como defensa adicional si se habilita el acceso directo.
-- Nunca exponer la `service_role` de Supabase al navegador.
+- RLS como defensa adicional si se habilita el acceso directo (Neon Data API).
+- Nunca exponer credenciales de base de datos ni claves S3 al navegador.
 
 ### 4.4. Validación y salida
 
@@ -295,8 +296,8 @@ Se recomienda realizar una DPIA antes de producción por:
 
 ### 5.8. Transferencias internacionales
 
-- Supabase en región europea.
-- OpenAI con garantías contractuales y, si es posible, residencia de datos en la UE.
+- Neon en región europea (Frankfurt).
+- Google Gemini con garantías contractuales y, si es posible, residencia de datos en la UE.
 - Proveedor de email en la UE o con SCC.
 - Documentar transferencias y evaluación de riesgo.
 
@@ -378,7 +379,7 @@ Se recomienda realizar una DPIA antes de producción por:
 ### Fase 1 — Fundación
 
 - [ ] Variables de entorno y secretos.
-- [ ] Auth con Supabase.
+- [ ] Auth con Better Auth.
 - [ ] RBAC base.
 - [ ] Multi-tenancy y pruebas.
 - [ ] Validación Zod.
@@ -463,7 +464,7 @@ Se recomienda realizar una DPIA antes de producción por:
 3. Documentación exigida para autorizar la publicación de un memorial.
 4. Procedimiento de verificación de herederos.
 5. Política de datos de personas fallecidas y familiares vivos.
-6. Uso de OpenAI y transferencias internacionales.
+6. Uso de Google Gemini y transferencias internacionales.
 7. Edad mínima y tratamiento de menores.
 8. Indexación de memoriales en buscadores.
 9. Conservación de logs de auditoría y de IA.

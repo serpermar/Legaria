@@ -92,13 +92,15 @@ La declaración cubre: familiar directo o heredero, capacidad legal, responsabil
 
 | Proveedor | Función | Ubicación | Garantías |
 |---|---|---|---|
-| **Supabase** | DB, Auth, Storage | UE (plan pago); **US en free tier** | SCC |
+| **Neon** | PostgreSQL | UE (Frankfurt) en Free y planes de pago | SCC / DPA |
+| **Neon Object Storage** | Almacenamiento S3-compatible | UE (Frankfurt) | SCC / DPA |
+| **Better Auth** (autoalojado en la API) | Identidad y sesiones | Infraestructura de Render | No es un encargado externo: se ejecuta en la API |
 | **Render** | Backend | US (free tier) | SCC |
 | **Vercel** | Frontend | Global (edge) | SCC |
 | **Google (Gemini)** | IA generativa | US | **No usar en producción con datos personales en free tier**; en MVP solo prompts anonimizados |
 | **Resend** | Email transaccional | US | SCC |
 
-> **Restricción del plan gratuito**: el free tier de Supabase es US. Para producción real, migrar a región UE y firmar DPA con cada proveedor.
+> **Restricción del plan gratuito**: Neon Free permite elegir región europea (Frankfurt), pero Render Free y Resend operan en US. Para producción real, firmar DPA con cada proveedor y valorar regiones UE también para API y email.
 
 ## 9. Menores
 

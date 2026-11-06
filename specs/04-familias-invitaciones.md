@@ -194,7 +194,7 @@ Reglas:
 
 - Validar hash, estado, caducidad y usos.
 - Verificar que el email de la cuenta coincide.
-- Si el usuario no existe, crear cuenta en Supabase Auth y en `users`.
+- Si el usuario no existe, crear cuenta en Better Auth y en `users`.
 - Si existe, requerir sesión con el email invitado.
 - Crear membership en el grupo.
 - Marcar invitación como `ACCEPTED` y `used_count = 1`.

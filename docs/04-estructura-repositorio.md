@@ -14,7 +14,7 @@ Se propone un monorepo con:
 - `packages/contracts`: esquemas Zod, tipos y constantes compartidas.
 - `packages/config`: configuración común de TypeScript, ESLint y Prettier (opcional al inicio).
 - `docs` y `specs`: documentación y especificaciones.
-- `infra`: políticas de Supabase, almacenamiento y Docker local.
+- `infra`: políticas RLS de PostgreSQL, configuración de almacenamiento y Docker local.
 
 Ventajas:
 
@@ -191,10 +191,9 @@ legaria/
 │       ├── eslint/
 │       └── typescript/
 ├── infra/
-│   ├── supabase/
-│   │   ├── policies/
-            └── 0001_rls.sql 
-│   │   └── storage.sql
+│   ├── db/
+│   │   └── policies/
+│   │       └── 0001_rls.sql
 │   └── docker-compose.yml
 └── scripts/
     ├── generate-openapi.ts
@@ -396,15 +395,18 @@ Cada layout tiene su navegación, sus permisos visuales y su estética.
 ```text
 NODE_ENV
 PORT
+CORS_ORIGIN
 DATABASE_URL
 DIRECT_URL
-SUPABASE_URL
-SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY
-SUPABASE_JWT_SECRET
-SESSION_SECRET
-CSRF_SECRET
-OPENAI_API_KEY
+DATABASE_URL_TEST
+BETTER_AUTH_SECRET
+BETTER_AUTH_URL
+S3_ENDPOINT
+S3_REGION
+S3_BUCKET
+S3_ACCESS_KEY_ID
+S3_SECRET_ACCESS_KEY
+GEMINI_API_KEY
 EMAIL_API_KEY
 SENTRY_DSN
 APP_URL
@@ -415,6 +417,7 @@ API_URL
 
 ```text
 VITE_API_URL
+VITE_AUTH_URL
 VITE_APP_URL
 VITE_SENTRY_DSN
 ```

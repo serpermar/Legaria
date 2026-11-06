@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    color-scheme: light;
+}
+
+html,
+body,
+#root {
+    height: 100%;
+}
+
+body {
+    @apply bg-[#F7F4EF] text-[#343434] font-sans antialiased;
+}

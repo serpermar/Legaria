@@ -35,9 +35,9 @@ No incluye:
 
 ## 3. Modelo de identidad
 
-- **Supabase Auth** almacena credenciales, emails verificados y factores MFA.
+- **Better Auth** almacena credenciales, emails verificados y factores MFA.
 - La tabla `users` almacena el perfil y referencia `auth_user_id`.
-- Los roles de negocio **no** se guardan en el JWT de Supabase.
+- Los roles de negocio **no** se guardan en la sesión de Better Auth.
 - En cada petición, la API resuelve el actor desde PostgreSQL.
 - Un usuario puede tener varias memberships de organización y de familia.
 
@@ -67,16 +67,16 @@ type ActorContext = {
 ### 4.1. Login
 
 ```text
-POST /api/v1/auth/login
+POST /api/auth/sign-in/email
 { "email": "...", "password": "..." }
 ```
 
 1. Validar formato.
 2. Aplicar rate limit por IP y por email.
-3. Autenticar contra Supabase Auth.
+3. Autenticar con Better Auth.
 4. Si el email no está verificado, devolver `EMAIL_NOT_VERIFIED`.
 5. Si la cuenta está suspendida, devolver error genérico.
-6. Crear sesión y establecer cookies.
+6. Better Auth crea la sesión y establece la cookie `httpOnly`.
 7. Devolver perfil, memberships y organización activa sugerida.
 8. Auditar el acceso.
 
@@ -149,13 +149,13 @@ POST /api/v1/auth/reset-password
 
 ### 4.5. Verificación de email
 
-- Supabase envía el email de verificación.
-- La API comprueba `email_confirmed_at`.
+- Better Auth envía el email de verificación.
+- La API comprueba `auth_user.email_verified`.
 - Sin verificación no se accede a datos sensibles.
 
 ### 4.6. MFA
 
-- TOTP mediante Supabase Auth.
+- TOTP mediante el plugin `two-factor` de Better Auth.
 - Obligatoria para `SUPER_ADMIN` y `FUNERAL_ADMIN`.
 - Configuración en el primer acceso o en ajustes.
 - Códigos de recuperación.
@@ -187,7 +187,7 @@ Reglas:
 - Se busca por hash.
 - Se valida estado, caducidad, usos y email.
 - Si el usuario existe, se vincula tras verificar identidad.
-- Si no existe, se crea en Supabase Auth y en `users`.
+- Si no existe, se crea en Better Auth y en `users`.
 - Se crea la membership correspondiente.
 - Se marca la invitación como aceptada.
 - Se audita.

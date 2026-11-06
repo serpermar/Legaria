@@ -3,7 +3,7 @@
 **Estado:** Propuesta para validación  
 > **Fuente de verdad**: `apps/api/prisma/schema.prisma`. Este documento es un resumen ejecutivo del modelo. Si hay discrepancia entre este documento y el schema de Prisma, el schema prevalece y este documento debe actualizarse.
 
-> **RLS**: las políticas RLS aplicadas a este modelo están documentadas en ADR 0006 y viven en `infra/supabase/policies/`.
+> **RLS**: las políticas RLS aplicadas a este modelo están documentadas en ADR 0006 y ADR 0007, y viven en `infra/db/policies/`.
 **Motor:** PostgreSQL 15+ / Prisma ORM  
 **Identificadores:** UUID
 
@@ -78,12 +78,12 @@ erDiagram
 
 #### `users`
 
-Usuario de la plataforma. No almacena credenciales: Supabase Auth es la fuente de identidad.
+Usuario de la plataforma. No almacena credenciales: **Better Auth** es la fuente de identidad.
 
 | Campo | Tipo | Notas |
 |---|---|---|
 | `id` | uuid PK | Identificador interno. |
-| `auth_user_id` | uuid unique | Referencia a `auth.users` de Supabase. |
+| `auth_user_id` | text unique | Referencia a `auth_user.id` de Better Auth. |
 | `email` | citext unique | Normalizado. |
 | `full_name` | text | Nombre visible. |
 | `phone` | text null | Opcional. |
@@ -92,6 +92,19 @@ Usuario de la plataforma. No almacena credenciales: Supabase Auth es la fuente d
 | `last_login_at` | timestamptz null | Último acceso. |
 | `created_at`, `updated_at` | timestamptz | |
 | `deleted_at` | timestamptz null | Borrado lógico. |
+
+#### Tablas de Better Auth
+
+Better Auth gestiona la identidad en cuatro tablas propias. Se mapean a modelos Prisma con nombres distintos para no colisionar con `User`:
+
+| Tabla | Modelo Prisma | Contenido |
+|---|---|---|
+| `auth_user` | `AuthUser` | Identidad, email verificado e imagen. |
+| `auth_session` | `AuthSession` | Sesiones, token, caducidad, IP y user agent. |
+| `auth_account` | `AuthAccount` | Proveedores, hash de contraseña y tokens OAuth. |
+| `auth_verification` | `AuthVerification` | Verificaciones de email y recuperación. |
+
+`users.auth_user_id` enlaza el perfil de dominio con `auth_user.id`. Las credenciales y los tokens **nunca** se copian a `users`.
 
 #### `organizations`
 
@@ -544,7 +557,7 @@ Registro de generaciones asistidas.
 | `memorial_id` | uuid null | |
 | `requested_by` | uuid FK | |
 | `type` | enum | `BIOGRAPHY`, `TRIBUTE`, `TIMELINE`, `PHOTO_TAGGING`. |
-| `provider` | text | `openai`. |
+| `provider` | text | `gemini` (principal) u `openrouter` (respaldo). |
 | `model` | text | Modelo utilizado. |
 | `prompt_version` | text | Versionado de prompts. |
 | `input_hash` | text | Integridad sin guardar el texto completo. |

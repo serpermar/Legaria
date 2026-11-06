@@ -53,11 +53,11 @@ Disponer de una base técnica segura, reproducible y probada sobre la que constr
 - Monorepo pnpm con `apps/api`, `apps/web`, `packages/contracts`.
 - TypeScript estricto, ESLint, Prettier y Vitest.
 - Configuración de entornos y `.env.example`.
-- Supabase local o PostgreSQL de desarrollo.
+- PostgreSQL en Docker para desarrollo (Neon para staging/producción).
 - Esquema Prisma inicial con usuarios, organizaciones, memberships y auditoría.
 - Migraciones y seed con dos organizaciones.
-- Autenticación con Supabase.
-- Sesión con cookies o Bearer según decisión.
+- Autenticación con Better Auth.
+- Sesión con cookies `httpOnly` (BFF).
 - Middleware de autenticación y resolución de actor.
 - RBAC base y catálogo de permisos.
 - Aislamiento multi-tenant y pruebas cross-tenant.
@@ -80,7 +80,7 @@ Disponer de una base técnica segura, reproducible y probada sobre la que constr
 ### Riesgos
 
 - Complejidad del modelo de sesión.
-- Configuración de Supabase local.
+- Configuración de PostgreSQL local en Docker.
 - Curva inicial de Prisma y migraciones.
 
 ---
@@ -308,7 +308,7 @@ Durante todas las fases:
 - Crear `.env.example`.
 - Configurar Prisma y base de datos local.
 - Definir esquema inicial de usuarios, organizaciones y memberships.
-- Configurar Supabase Auth.
+- Configurar Better Auth.
 - Implementar login, refresh y logout.
 - Implementar middleware de actor.
 - Crear seed con dos organizaciones.
